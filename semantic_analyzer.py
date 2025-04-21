@@ -40,6 +40,37 @@ def main():
         for line in source_code:
             #line contains \n as well
             print(line, end= "$")
+            processedLine = line.split("=")
+            #line is either a declaration:
+            #int x = 1
+            #or an assignment:
+            #x = 1
+            if(len(processedLine) > 1):
+                lhs = processedLine[0]
+                rhs = processedLine[1]
+                #we don't really care about the rhs for now
+                processedLhs = lhs.split(" ")
+                #This is a declaration
+                if(len(processedLhs) > 1):
+                    possibleType = processedLhs[0]
+                    if(possibleType in types):
+                        #we are going to assume there is only one variable name
+                        #and not many seperated by commas like x,y,z
+                        symbol_table[processedLhs[1]] = possibleType
+                    else:
+                        print(f"We reached a strange error: {processedLine}")
+                #This is an assignment
+                else:
+                    # we care about the rhs now. CHECK FOR MIX MODE 
+                    #Start off easy, only worry about ints and floats
+                    
+
+            #line is either an initialization:
+            #int x / int main()
+            #or something other statement:
+            #return 0 / print() / ect
+            else:
+                #do something else
 
     return 0
     #     #line = file.readline()
