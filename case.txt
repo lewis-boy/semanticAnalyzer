@@ -1,0 +1,19 @@
+int main()
+{
+    int myInt = 0;
+    float myFloat = 1.0;
+    bool myBool = true;
+    myInt = myInt + 1;
+    myFloat = myFloat + myInt;
+    return 0;
+}
+
+
+int main()
+{
+    int myInt;
+    float myFloat = 1;
+    myFloat = 2 + myOtherFloat;
+    printf(myInt);
+    return 0.1;
+}
