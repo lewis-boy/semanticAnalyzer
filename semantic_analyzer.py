@@ -1,40 +1,47 @@
 def main():
     types = ['int', 'float', 'bool']
     symbol_table  = {}
+    operators = ['+', '-', '*', '/', '&&', '||']
 
-    def skip_whitespace(file):
-        char = file.read(1)
-        while char in [' ', '\t', '\n']:
-            char = file.read(1)
-        return char
-
-    def read_word(file, first_char):
-        word = [first_char]
-        char = file.read(1)
-        #read newline
-        while char.isalnum() or char == '_' or char == '(' or char == ')':
-            word.append(char)
-            char = file.read(1)
-        return ''.join(word), char
-
-    #reads the RHS regardless if its a number or an expression like x + 1 + y
-    def read_value(file, first_char):
-        value = [first_char]
-        char = file.read(1)
-        while char and char not in [';', '\n']:
-            value.append(char)
-            char = file.read(1)
-        return ''.join(value).strip()
-
-    def is_valid_value(var_type, value):
-        if var_type == 'int':
+    def isValid(type, value):
+        if type == 'int':
             return value.lstrip('-').isdigit()
-        elif var_type == 'float':
+        elif type == 'float':
             parts = value.lstrip('-').split('.')
             return len(parts) == 2 and all(part.isdigit() for part in parts)
-        elif var_type == 'bool':
+        elif type == 'bool':
             return value in ['true', 'false']
         return False
+
+    def getOperands(rhs):
+        operands = []
+        for element in rhs:
+            if element not in operators:
+                operands.append(element)
+        return operands
+    
+    def getOperators(rhs):
+        operators = []
+        for element in rhs:
+            if element in operators:
+                operators.append(element)
+        return operators
+    
+    def isValidOperand(operands, type):
+        for operand in operands:
+            if not isValid(type, operand):
+                return False
+        return True
+    
+    def isValidOperator(operatorsArray, type):
+        for operator in operatorsArray:
+            if type == "int" or type == "float":
+                if operator not in ["+", "-", "*", "/"]:
+                    return False
+            else:
+                if operator not in ["&&" or "||"]: 
+                    return False
+        return True
 
     with open('case.txt', 'r') as source_code:
         for line in source_code:
@@ -61,8 +68,21 @@ def main():
                         print(f"We reached a strange error: {processedLine}")
                 #This is an assignment
                 else:
+                    variableName = processedLhs[0]
                     # we care about the rhs now. CHECK FOR MIX MODE 
-                    #Start off easy, only worry about ints and floats
+                    #Start off easy, only worry about ints and floats and bools
+                    operandsAndOperators = rhs.split("")
+                    operands = getOperands(operandsAndOperators)
+                    operators = getOperators(operandsAndOperators)
+                    if not isValidOperand(operands, symbol_table[variableName]):
+                        print(f"{line}: invalid operands. Expected operands of type {symbol_table[variableName]}")
+                        break
+                    if not isValidOperator(operators, symbol_table[variableName]):
+                        print(f"{line}: invalid operator(s) for operands of type {symbol_table[variableName]}")
+                        break
+                    #We should assign value now
+                    #Mix Mode DONE
+
                     
 
             #line is either an initialization:
