@@ -52,15 +52,15 @@ def main():
             #int x = 1
             #or an assignment:
             #x = 1
-            if(len(processedLine) > 1):
+            if len(processedLine) > 1:
                 lhs = processedLine[0]
                 rhs = processedLine[1]
                 #we don't really care about the rhs for now
                 processedLhs = lhs.split(" ")
                 #This is a declaration
-                if(len(processedLhs) > 1):
+                if len(processedLhs) > 1:
                     possibleType = processedLhs[0]
-                    if(possibleType in types):
+                    if possibleType in types:
                         #we are going to assume there is only one variable name
                         #and not many seperated by commas like x,y,z
                         symbol_table[processedLhs[1]] = possibleType
@@ -90,7 +90,13 @@ def main():
             #or something other statement:
             #return 0 / print() / ect
             else:
-                #do something else
+                choppedupLine = processedLine.split(" ")
+                if(choppedupLine[0] in types and choppedupLine[1] not in symbol_table):
+                    symbol_table[choppedupLine[1].rstrip('()')] = choppedupLine[0]
+                elif(choppedupLine[0] in types and choppedupLine[1] in symbol_table):
+                    print("Error. Already initialized")
+                else:
+                    #regular statement. do nothing
 
     return 0
     #     #line = file.readline()
