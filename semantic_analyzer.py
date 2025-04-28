@@ -1,16 +1,19 @@
 def main():
     types = ['int', 'float', 'bool']
     symbol_table  = {}
+    stack = []
     operators = ['+', '-', '*', '/', '&&', '||']
 
+
+    # TODO turn the right side of the OR statement into its own function with proper error message.
     def isValid(type, value):
         if type == 'int':
-            return value.lstrip('-').isdigit()
+            return value.lstrip('-').isdigit() or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'int')
         elif type == 'float':
             parts = value.lstrip('-').split('.')
-            return len(parts) == 2 and all(part.isdigit() for part in parts)
+            return (len(parts) == 2 and all(part.isdigit() for part in parts)) or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'float')
         elif type == 'bool':
-            return value in ['true', 'false']
+            return value in ['true', 'false'] or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'bool')
         return False
 
     def getOperands(rhs):
@@ -42,61 +45,116 @@ def main():
                 if operator not in ["&&" or "||"]: 
                     return False
         return True
+    
+    def hadEqualSign(array):
+        return len(array) > 1
+    
+    def areInitializing(array):
+        return len(array) > 1
+    
+    def hasMoreThanOneToken(array):
+        return len(array) > 1
+    
+    def isInSymbolTable(name):
+        return name in symbol_table
+    
+    def firstTokenIsTypeKeyword(token):
+        return token in types
+    
+    def isReturnStatement(token):
+        return token == "return"
+    
+    def hasValidRhs(rhs, name, statement):
+        operandsAndOperators = rhs.split()
+        operands = getOperands(operandsAndOperators)
+        operators = getOperators(operandsAndOperators)
+        if not isValidOperand(operands, symbol_table[name]["type"]):
+            print(f"{statement}: invalid operands. Expected operands of type {symbol_table[name]["type"]}")
+            return False
+        if not isValidOperator(operators, symbol_table[name]["type"]):
+            print(f"{statement}: invalid operator(s) for operands of type {symbol_table[name]["type"]}")
+            return False
+        return True
 
     with open('case.txt', 'r') as source_code:
         for line in source_code:
-            #line contains \n as well
-            print(line, end= "$")
-            processedLine = line.split("=")
-            #line is either a declaration:
-            #int x = 1
-            #or an assignment:
-            #x = 1
-            if len(processedLine) > 1:
-                lhs = processedLine[0]
-                rhs = processedLine[1]
-                #we don't really care about the rhs for now
-                processedLhs = lhs.split(" ")
-                #This is a declaration
-                if len(processedLhs) > 1:
-                    possibleType = processedLhs[0]
-                    if possibleType in types:
-                        #we are going to assume there is only one variable name
-                        #and not many seperated by commas like x,y,z
-                        symbol_table[processedLhs[1]] = possibleType
-                    else:
-                        print(f"We reached a strange error: {processedLine}")
-                #This is an assignment
+            line = line.strip(";\n")
+            print(line, end= "$\n")
+            lineWithEqualsRemoved = line.split("=")
+            if hadEqualSign(lineWithEqualsRemoved):
+                lhs = lineWithEqualsRemoved[0]
+                rhs = lineWithEqualsRemoved[1]
+                lhs = lhs.split()
+                if areInitializing(lhs):
+                    possibleType = lhs[0]
+                    possibleName = lhs[1]
+                    if isInSymbolTable(possibleName):
+                        print(f"Error! {possibleName} is already initialized. Use a different name!")
+                    if possibleType not in types:
+                        print(f"Error! {possibleType} is not a valid type. Please use valid typing!")
+                    varType = possibleType
+                    name = possibleName
+                    symbol_table[name] = {}
+                    symbol_table[name]["type"] = varType
+                    symbol_table[name]["hasValue"] = False
+                    if not hasValidRhs(rhs, name, line):
+                        break
+                    symbol_table[name]["hasValue"] = True
+
+
                 else:
-                    variableName = processedLhs[0]
-                    # we care about the rhs now. CHECK FOR MIX MODE 
-                    #Start off easy, only worry about ints and floats and bools
-                    operandsAndOperators = rhs.split("")
-                    operands = getOperands(operandsAndOperators)
-                    operators = getOperators(operandsAndOperators)
-                    if not isValidOperand(operands, symbol_table[variableName]):
-                        print(f"{line}: invalid operands. Expected operands of type {symbol_table[variableName]}")
+                    #we are assigning
+                    name = lhs[0]
+                    if not isInSymbolTable(name):
+                        print(f"Error! {name} has not been initialized yet. Please initialize!")
+                    if not hasValidRhs(rhs, name, line):
                         break
-                    if not isValidOperator(operators, symbol_table[variableName]):
-                        print(f"{line}: invalid operator(s) for operands of type {symbol_table[variableName]}")
-                        break
-                    #We should assign value now
-                    #Mix Mode DONE
+                    symbol_table[name]["hasValue"] = True
 
-                    
-
-            #line is either an initialization:
-            #int x / int main()
-            #or something other statement:
-            #return 0 / print() / ect
+            #it did not contain an equals sign
             else:
-                choppedupLine = processedLine.split(" ")
-                if(choppedupLine[0] in types and choppedupLine[1] not in symbol_table):
-                    symbol_table[choppedupLine[1].rstrip('()')] = choppedupLine[0]
-                elif(choppedupLine[0] in types and choppedupLine[1] in symbol_table):
-                    print("Error. Already initialized")
-                else:
-                    #regular statement. do nothing
+                line = line.split()
+                if hasMoreThanOneToken(line):
+                    if firstTokenIsTypeKeyword(line[0]):
+                        # we are declaring
+                        varType = line[0]
+                        name = line[1]
+                        if name.endswith("()"):
+                            name = name.strip("()")
+                            if isInSymbolTable(name):
+                                print(f"Error! {name} is already initialized. Use a different name!")
+                                break
+                            symbol_table[name] = {}
+                            symbol_table[name]["type"] = varType
+                            symbol_table[name]["hasValue"] = False
+                            stack.append(name)
+                        else:
+                            if isInSymbolTable(name):
+                                print(f"Error! {name} is already initialized. Use a different name!")
+                                break
+                            symbol_table[name] = {}
+                            symbol_table[name]["type"] = varType
+                            symbol_table[name]["hasValue"] = False
+                    #check if the first token is a return keyword
+                    elif isReturnStatement(line[0]):
+                        if not stack:
+                            print("Error! You can't use return statements here")
+                            break
+                        name = stack[-1]
+                        value = line[1]
+                        if not isValid(symbol_table[name]["type"], value):
+                            print(f"Error! {line}: invalid operand. Expected operand of type {symbol_table[name]["type"]}")
+                            break
+                        symbol_table[name]["hasValue"] = True
+
+
+
+
+
+
+
+
+
 
     return 0
     #     #line = file.readline()
