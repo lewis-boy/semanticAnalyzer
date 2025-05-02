@@ -3,18 +3,22 @@ def main():
     symbol_table  = {}
     stack = []
     operators = ['+', '-', '*', '/', '&&', '||']
+    foundError = False
 
 
     # TODO turn the right side of the OR statement into its own function with proper error message.
+
     def isValid(type, value):
         if type == 'int':
-            return value.lstrip('-').isdigit() or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'int')
+            result = value.lstrip('-').isdigit() or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'int')
         elif type == 'float':
             parts = value.lstrip('-').split('.')
-            return (len(parts) == 2 and all(part.isdigit() for part in parts)) or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'float')
+            result = (len(parts) == 2 and all(part.isdigit() for part in parts)) or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'float')
         elif type == 'bool':
-            return value in ['true', 'false'] or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'bool')
-        return False
+            result = value in ['true', 'false'] or (value in symbol_table and symbol_table[value]["hasValue"] and symbol_table[value]["type"] == 'bool')
+        if not result:
+            print(f"This operand -> {value} does not match the intended {type} type.")
+        return result
 
     def getOperands(rhs):
         operands = []
@@ -69,7 +73,7 @@ def main():
         operands = getOperands(operandsAndOperators)
         operators = getOperators(operandsAndOperators)
         if not isValidOperand(operands, symbol_table[name]["type"]):
-            print(f"{statement}: invalid operands. Expected operands of type {symbol_table[name]["type"]}")
+            print(f"{statement}: invalid operands. Please check that your operands {operands} are of type {symbol_table[name]["type"]}\nIf operands are variables, check if they have been correctly initilized.")
             return False
         if not isValidOperator(operators, symbol_table[name]["type"]):
             print(f"{statement}: invalid operator(s) for operands of type {symbol_table[name]["type"]}")
@@ -79,7 +83,7 @@ def main():
     with open('case.txt', 'r') as source_code:
         for line in source_code:
             line = line.strip(";\n")
-            print(line, end= "$\n")
+            # print(line, end= "$\n")
             lineWithEqualsRemoved = line.split("=")
             if hadEqualSign(lineWithEqualsRemoved):
                 lhs = lineWithEqualsRemoved[0]
@@ -89,8 +93,10 @@ def main():
                     possibleType = lhs[0]
                     possibleName = lhs[1]
                     if isInSymbolTable(possibleName):
+                        foundError = True
                         print(f"Error! {possibleName} is already initialized. Use a different name!")
                     if possibleType not in types:
+                        foundError = True
                         print(f"Error! {possibleType} is not a valid type. Please use valid typing!")
                     varType = possibleType
                     name = possibleName
@@ -98,6 +104,7 @@ def main():
                     symbol_table[name]["type"] = varType
                     symbol_table[name]["hasValue"] = False
                     if not hasValidRhs(rhs, name, line):
+                        foundError = True
                         break
                     symbol_table[name]["hasValue"] = True
 
@@ -106,8 +113,10 @@ def main():
                     #we are assigning
                     name = lhs[0]
                     if not isInSymbolTable(name):
+                        foundError = True
                         print(f"Error! {name} has not been initialized yet. Please initialize!")
                     if not hasValidRhs(rhs, name, line):
+                        foundError = True
                         break
                     symbol_table[name]["hasValue"] = True
 
@@ -122,6 +131,7 @@ def main():
                         if name.endswith("()"):
                             name = name.strip("()")
                             if isInSymbolTable(name):
+                                foundError = True
                                 print(f"Error! {name} is already initialized. Use a different name!")
                                 break
                             symbol_table[name] = {}
@@ -130,6 +140,7 @@ def main():
                             stack.append(name)
                         else:
                             if isInSymbolTable(name):
+                                foundError = True
                                 print(f"Error! {name} is already initialized. Use a different name!")
                                 break
                             symbol_table[name] = {}
@@ -138,85 +149,20 @@ def main():
                     #check if the first token is a return keyword
                     elif isReturnStatement(line[0]):
                         if not stack:
+                            foundError = True
                             print("Error! You can't use return statements here")
                             break
                         name = stack[-1]
                         value = line[1]
                         if not isValid(symbol_table[name]["type"], value):
-                            print(f"Error! {line}: invalid operand. Expected operand of type {symbol_table[name]["type"]}")
+                            foundError = True
+                            print(f"Error! ({line[1]}) Invalid return value. Expected return type of {symbol_table[name]["type"]}")
                             break
                         symbol_table[name]["hasValue"] = True
-
-
-
-
-
-
-
-
-
-
-    return 0
-    #     #line = file.readline()
-    #     word = read_word(file, skip_whitespace(file))
-    #     while word != '\n':
-    #         # Skip whitespace to find the start of a line
-    #         char = skip_whitespace(file)
-
-    #         if not char:
-    #             break
-
-    #         # Check if line starts with a type (keyword)
-    #         if char.isalpha():
-    #             word, next_char = read_word(file, char)
-
-    #             if word in types:
-    #                 var_type = word
-            
-    #                 # Skip whitespace after type
-    #                 while next_char in [' ', '\t']:
-    #                     next_char = file.read(1)
-
-    #                 # Read variable name
-    #                 if not (next_char.isalpha() or next_char == '_'):
-    #                     print("Invalid variable name start.")
-    #                     continue
-    #                 var_name, next_char = read_word(file, next_char)
-    #                 if(var_name[-2:].strip() == "()"):
-    #                     print(f"'{var_name}' is a function")
-    #                 #Assignment
-    #                 else:
-    #                       # Skip whitespace before =
-    #                     while next_char in [' ', '\t']:
-    #                         next_char = file.read(1)
-
-    #                     if next_char != '=':
-    #                         print(f"Expected '=' after variable name '{var_name}'")
-    #                         continue
-    #                     # Skip whitespace after =
-    #                     next_char = skip_whitespace(file)
-
-    #                     # Read value
-    #                     value = read_value(file, next_char)
-    #                     # Validate
-    #                     if is_valid_value(var_type, value):
-    #                         symbol_table[var_name] = var_type
-    #                         print(f"Valid: {var_type} {var_name} = {value}")
-    #                     else:
-    #                         print(f"Invalid assignment: {var_type} {var_name} = {value}")
-                    
-    #             else:
-    #                 # Not a type declaration — skip rest of line (usage, etc.)
-    #                 file.readline()
-    #                 continue
-    #         else:
-    #             # Skip non-type lines
-    #             file.readline()
-
-    # print("\nCollected Variables:")
-    # for var in symbol_table:
-    #     print(var)
-
+    if not foundError:
+        print("No semantic errors found. Code is semantically correct! Congratulations!")
+    
+    return True
 
 if __name__ == "__main__":
     main()

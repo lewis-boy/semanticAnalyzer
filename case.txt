@@ -1,8 +1,8 @@
 int main()
 {
-int myInt;
+int myInt = 1;
 float myFloat = 1.0;
 myFloat = 2.0 + myFloat;
 printf(myInt);
-return 0.1;
+return 1.0;
 }
