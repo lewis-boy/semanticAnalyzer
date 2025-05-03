@@ -1,3 +1,4 @@
+
 def main():
     types = ['int', 'float', 'bool']
     symbol_table  = {}
@@ -7,6 +8,18 @@ def main():
 
 
     # TODO turn the right side of the OR statement into its own function with proper error message.
+
+    # def scanSymbolTable(type, value):
+    #     if value not in symbol_table:
+    #         print(f"{value} has not been initialized")
+    #         return False
+    #     if not symbol_table[value]["hasValue"]:
+    #         print(f"{value} has only been initialized but does not have an initial value")
+    #         return False
+    #     if symbol_table[value]["type"] != type:
+    #         print(f"{value} should be of type -> {type}")
+    #         return False
+    #     return True
 
     def isValid(type, value):
         if type == 'int':
@@ -19,6 +32,16 @@ def main():
         if not result:
             print(f"This operand -> {value} does not match the intended {type} type.")
         return result
+
+    # def isValid(type, value):
+    #     if type == 'int':
+    #         return value.lstrip('-').isdigit() or scanSymbolTable(type, value)
+    #     elif type == 'float':
+    #         parts = value.lstrip('-').split('.')
+    #         return (len(parts) == 2 and all(part.isdigit() for part in parts)) or scanSymbolTable(type, value)
+    #     elif type == 'bool':
+    #         return value in ['true', 'false'] or scanSymbolTable(type, value)
+    #     return False
 
     def getOperands(rhs):
         operands = []
