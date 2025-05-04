@@ -1,8 +1,10 @@
 int main()
 {
-int myInt = 1;
+int myInt;
 float myFloat = 1.0;
-myFloat = 2.0 + myFloat;
+long myFloaty = 2.0;
+float myOtherFloat = 1.0;
+myFloat = 2.0 + myOtherFloat;
 printf(myInt);
-return 1.0;
+return 1;
 }

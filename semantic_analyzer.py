@@ -5,6 +5,7 @@ def main():
     stack = []
     operators = ['+', '-', '*', '/', '&&', '||']
     foundError = False
+    lineNumber = 0
 
 
     # TODO turn the right side of the OR statement into its own function with proper error message.
@@ -96,15 +97,17 @@ def main():
         operands = getOperands(operandsAndOperators)
         operators = getOperators(operandsAndOperators)
         if not isValidOperand(operands, symbol_table[name]["type"]):
-            print(f"{statement}: invalid operands. Please check that your operands {operands} are of type {symbol_table[name]["type"]}\nIf operands are variables, check if they have been correctly initilized.")
+            print(f"Error on line {lineNumber}! {statement}: invalid operands. Please check that your operands {operands} are of type {symbol_table[name]["type"]}\nIf operands are variables, check if they have been correctly initialized.")
             return False
         if not isValidOperator(operators, symbol_table[name]["type"]):
-            print(f"{statement}: invalid operator(s) for operands of type {symbol_table[name]["type"]}")
+            print(f"Error on line {lineNumber}! {statement}: invalid operator(s) for operands of type {symbol_table[name]["type"]}")
             return False
         return True
 
     with open('case.txt', 'r') as source_code:
+
         for line in source_code:
+            lineNumber += 1
             line = line.strip(";\n")
             # print(line, end= "$\n")
             lineWithEqualsRemoved = line.split("=")
@@ -117,10 +120,12 @@ def main():
                     possibleName = lhs[1]
                     if isInSymbolTable(possibleName):
                         foundError = True
-                        print(f"Error! {possibleName} is already initialized. Use a different name!")
+                        print(f"Error on line {lineNumber}! {possibleName} is already initialized. Use a different name!")
+                        break
                     if possibleType not in types:
                         foundError = True
-                        print(f"Error! {possibleType} is not a valid type. Please use valid typing!")
+                        print(f"Error on line {lineNumber}! {possibleType} is not a valid type. Please use valid typing!")
+                        break
                     varType = possibleType
                     name = possibleName
                     symbol_table[name] = {}
@@ -137,7 +142,8 @@ def main():
                     name = lhs[0]
                     if not isInSymbolTable(name):
                         foundError = True
-                        print(f"Error! {name} has not been initialized yet. Please initialize!")
+                        print(f"Error on line {lineNumber}! {name} has not been initialized yet. Please initialize!")
+                        break
                     if not hasValidRhs(rhs, name, line):
                         foundError = True
                         break
@@ -155,7 +161,7 @@ def main():
                             name = name.strip("()")
                             if isInSymbolTable(name):
                                 foundError = True
-                                print(f"Error! {name} is already initialized. Use a different name!")
+                                print(f"Error on line {lineNumber}! {name} is already initialized. Use a different name!")
                                 break
                             symbol_table[name] = {}
                             symbol_table[name]["type"] = varType
@@ -164,7 +170,7 @@ def main():
                         else:
                             if isInSymbolTable(name):
                                 foundError = True
-                                print(f"Error! {name} is already initialized. Use a different name!")
+                                print(f"Error on line {lineNumber}! {name} is already initialized. Use a different name!")
                                 break
                             symbol_table[name] = {}
                             symbol_table[name]["type"] = varType
@@ -173,13 +179,13 @@ def main():
                     elif isReturnStatement(line[0]):
                         if not stack:
                             foundError = True
-                            print("Error! You can't use return statements here")
+                            print(f"Error on line {lineNumber}! You can't use return statements here")
                             break
                         name = stack[-1]
                         value = line[1]
                         if not isValid(symbol_table[name]["type"], value):
                             foundError = True
-                            print(f"Error! ({line[1]}) Invalid return value. Expected return type of {symbol_table[name]["type"]}")
+                            print(f"Error on line {lineNumber}! ({line[1]}) Invalid return value. Expected return type of {symbol_table[name]["type"]}")
                             break
                         symbol_table[name]["hasValue"] = True
     if not foundError:
