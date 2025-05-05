@@ -20,7 +20,7 @@ def optimizer(self):
     print(", ".join(str(leader) for leader in sorted(control_flow_graph.leaders)))
 
     # OUTPUT - Display CFG
-    print(".\nControl-Flow Graph:")
+    print(".\nControl-Flow Graph:\n")
     control_flow_graph.display()
 
 

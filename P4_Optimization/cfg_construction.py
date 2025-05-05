@@ -48,14 +48,18 @@ class ControlFlowGraph:
         self.nodes = []             # List of all CFG nodes
         self.label_to_node = {}     # Maps Labels to Nodes
 
-        self.leaders = {}           # List of all basic-block leaders
+        self.leaders = {}              # List of all basic-block leaders
+        self.predecessor_to_label = {} # Maps a line# to a label
+        self.successor_to_label   = {} # Maps a line# to a label
 
         # Read Input File
         with open(tac_file_path, 'r') as file:
             self.file = file.readlines()
 
         # Build CFG
+
         self._get_leaders()
+        self._rename_blocks()
         self._build_graph()
 
     # END - Constructor
@@ -70,50 +74,49 @@ class ControlFlowGraph:
         # 2. At the "target" of any branch.   -- line lead to by a "goto"
         # 3. Immediately after any branch.    -- any line following a conditional.
 
-        # Remove
-        if True:
-            # Loop through every line in the file
-            for line_number, line in enumerate(self.file, start=1):
+        # Loop through every line in the file
+        for line_number, line in enumerate(self.file, start=1):
 
-                # Strip whitespace
-                line = line.strip()
+            # Strip whitespace
+            line = line.strip()
 
-                # Skip comments and empty lines
-                if not line or line.startswith("#"):
+            # Skip comments and empty lines
+            if not line or line.startswith("#"):
+                continue
+
+            # Mark Starting Leader  (condition 1.)
+            if len(self.leaders) == 0:
+                self.leaders[line_number] = "block_" + str(len(self.leaders)+1) # Add leader
+
+                # Mark Branch-Target Following Leader (condition 3.)
+                self._find_follower(1)
+                continue
+
+            # Mark Branch-Target Leader (condition 2.)
+            if "if " in line and "goto " in line:
+                start = line.find("goto ") + len("goto ")
+                num_str = ""
+                # Gather Digits After GOTO
+                while start < len(line) and line[start].isdigit():
+                    num_str += line[start]
+                    start += 1
+
+                # If Valid Target
+                if num_str:
+                    # Convert Branch-Target to int
+                    target = int(num_str)
+
+                else:
+                    # Catch Error
+                    print("Debug:", " Invalid GOTO / Jump Destination.")
                     continue
 
-                # Mark Starting Leader  (condition 1.)
-                if len(self.leaders) == 0:
-                    self.leaders[line_number] = "block_" + str(len(self.leaders)+1) # Add leader
+                # Check if Branch-Target is already a Leader
+                if target not in self.leaders:
+                    self.leaders[target] = "block_" + str(len(self.leaders) + 1)  # Add leader
 
-                    # Mark Branch-Target Following Leader (condition 3.)
-                    self._find_follower(1)
-                    continue
-
-                # Mark Branch-Target Leader (condition 2.)
-                if "if " in line and "goto " in line:
-                    start = line.find("goto ") + len("goto ")
-                    num_str = ""
-                    # Gather Digits After GOTO
-                    while start < len(line) and line[start].isdigit():
-                        num_str += line[start]
-                        start += 1
-
-                    # If Valid Target
-                    if num_str:
-                        # Convert Branch-Target to int
-                        target = int(num_str)
-                    else:
-                        # Catch Error
-                        print("Debug:", " Invalid GOTO / Jump Destination.")
-                        continue
-
-                    # Check if Branch-Target is already a Leader
-                    if target not in self.leaders:
-                        self.leaders[target] = "block_" + str(len(self.leaders) + 1)  # Add leader
-
-                        # Mark Branch Following Leader (condition 3.)
-                        self._find_follower(line_number)
+                    # Mark Branch Following Leader (condition 3.)
+                    self._find_follower(line_number)
 
         print("Debug:", "Finished getting leaders.")
     # End - _get_leaders()
@@ -150,6 +153,19 @@ class ControlFlowGraph:
 
     # End - _find_follower()
     ####################################################################################################################
+    def _rename_blocks(self):
+        """
+            This method renames all the blocks in the order in which their leaders appear.
+        """
+        # Sort leaders
+        keys = sorted(self.leaders.keys())
+        for index, leader in enumerate(keys):
+            self.leaders[leader] = "block_" + str(index + 1)  # Add leader
+
+
+    # End - _find_follower()
+    ####################################################################################################################
+
     def _build_graph(self):
         """
             This method will populate the control-flow graph.
@@ -167,8 +183,9 @@ class ControlFlowGraph:
             # Check If Leader
             if line_number in self.leaders:
                 # Push Previous Node
-                self.nodes.append(current_node)
-                self.label_to_node[current_node.label] = current_node  # map: Label -> Node
+                if current_node.instructions:
+                    self.nodes.append(current_node)
+                    self.label_to_node[current_node.label] = current_node  # map: Label -> Node
 
                 # Create New Node
                 current_node = CFG_Node(self.leaders[line_number])
@@ -217,7 +234,7 @@ class ControlFlowGraph:
                 print(f"    {instr}")
             if node.successors:
                 print(f"    Successors: {[succ.label for succ in node.successors]}")
-            print()
+            print("\t  |\n\t  V")
 
     # End - display()
     ####################################################################################################################
