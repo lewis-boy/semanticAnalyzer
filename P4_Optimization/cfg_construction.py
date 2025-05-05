@@ -10,7 +10,7 @@ class CFG_Node:
     """
     def __init__(self, label=None):
 
-        self.label = label      # Which leader e.g. L1, L2, L3, L4
+        self.label = label      # Basic Block Index
         self.instructions = []  # List of TAC instructions in this block
 
         self.predecessors = []   # List of all predecessor nodes
@@ -46,7 +46,7 @@ class ControlFlowGraph:
     # Constructor
     def __init__(self, tac_file_path: str):
         self.nodes = []             # List of all CFG nodes
-        self.label_to_node = {}     # Maps labels (like L1, L2) to nodes for fast lookup
+        self.label_to_node = {}     # Maps Labels to Nodes
 
         self.leaders = {}           # List of all basic-block leaders
 
@@ -168,6 +168,7 @@ class ControlFlowGraph:
             if line_number in self.leaders:
                 # Push Previous Node
                 self.nodes.append(current_node)
+                self.label_to_node[current_node.label] = current_node  # map: Label -> Node
 
                 # Create New Node
                 current_node = CFG_Node(self.leaders[line_number])
@@ -187,10 +188,12 @@ class ControlFlowGraph:
 
         # Push Previous Node - (out-of-loop)
         self.nodes.append(current_node)
+        self.label_to_node[current_node.label] = current_node # map: Label -> Node
 
         # Add End Node
         current_node = CFG_Node("(end)")
         self.nodes.append(current_node)
+        self.label_to_node[current_node.label] = current_node # map: Label -> Node
 
     # End - _build_graph()
     ####################################################################################################################
