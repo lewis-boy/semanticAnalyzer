@@ -1,26 +1,150 @@
 # data_flow_analysis.py
+# Project 4 - Machine Independent Optimization
+# Implements data flow analysis for compiler opt.
 
-from cfg_construction import ControlFlowGraph
+from cfg_construction import ControlFlowGraph, CFG_Node
 
-########################################################################################################################
 class Data_Flow_Analyzer:
     """
     This class performs variable specific data-flow analysis on a given control-flow graph.
     """
     def __init__(self, cfg: ControlFlowGraph):
-        self.flow_graph = cfg
-        self.direction  = "Forward"
-        self.path_use   = "Any"
+        self.cfg = cfg
+        self.analysis_type = "ReachingDefinitions"
+        self.definitions = set()
 
     def compute_data_sets(self):
+        """Main method to run the analysis"""
+        if self.analysis_type == "ReachingDefinitions":
+            self._do_reaching_definitions()
+        else:
+            self._do_live_variables()
 
-    def apply_optimizations(self):
+    def _do_reaching_definitions(self):
+        """Runs the reaching definitions analysis"""
+        self._find_definitions()
+        self._setup_gen_kill()
+        self._init_in_out()
+        self._run_forward_analysis()
 
-    def set_direction(self, dir_param: str):
-        self.__setattr__('direction', dir_param)
-    def set_path(self,  path_param: str):
-        self.__setattr__('path', path_param)
-########################################################################################################################
+    def _do_live_variables(self):
+        """Runs the live variables analysis"""
+        self._setup_use_def()
+        self._init_in_out()
+        self._run_backward_analysis()
 
+    def _find_definitions(self):
+        """Finds all variable definitions in the program"""
+        for block in self.cfg.nodes:
+            for instr in block.instructions:
+                if '=' in instr:
+                    var = instr.split('=')[0].strip()
+                    self.definitions.add(var)
 
-########################################################################################################################
+    def _setup_gen_kill(self):
+        """Sets up GEN and KILL sets for each block"""
+        for block in self.cfg.nodes:
+            block.GEN = set()
+            block.KILL = set()
+            
+            for instr in block.instructions:
+                if '=' in instr:
+                    var = instr.split('=')[0].strip()
+                    block.GEN.add(var)
+                    
+                    for other_def in self.definitions:
+                        if other_def != var:
+                            var_base = var.split('[')[0] if '[' in var else var
+                            if other_def.startswith(var_base):
+                                block.KILL.add(other_def)
+
+    def _setup_use_def(self):
+        """Sets up USE and DEF sets for each block"""
+        for block in self.cfg.nodes:
+            block.USE = set()
+            block.DEF = set()
+            
+            for instr in block.instructions:
+                if '=' in instr:
+                    def_var = instr.split('=')[0].strip()
+                    block.DEF.add(def_var)
+                    
+                    # Simple variable detection - just look for variables after '='
+                    expr = instr.split('=')[1].strip()
+                    for var in self.definitions:
+                        if var in expr and var not in block.DEF:
+                            block.USE.add(var)
+
+    def _init_in_out(self):
+        """Initialize IN and OUT sets to empty"""
+        for block in self.cfg.nodes:
+            block.IN = set()
+            block.OUT = set()
+
+    def _run_forward_analysis(self):
+        """Run the forward analysis until it stabilizes"""
+        changed = True
+        iteration = 0
+        
+        while changed:
+            changed = False
+            iteration += 1
+            
+            print(f"\nIteration {iteration}:")
+            
+            for block in self.cfg.nodes:
+                old_in = block.IN.copy()
+                old_out = block.OUT.copy()
+                
+                block.IN = set()
+                for pred in block.predecessors:
+                    block.IN.update(pred.OUT)
+                
+                block.OUT = block.GEN.union(block.IN - block.KILL)
+                
+                if old_in != block.IN or old_out != block.OUT:
+                    changed = True
+                
+                self._print_state(block)
+            
+            print("\n" + "="*50)
+
+    def _run_backward_analysis(self):
+        """Run the backward analysis until it stabilizes"""
+        changed = True
+        iteration = 0
+        
+        while changed:
+            changed = False
+            iteration += 1
+            
+            print(f"\nIteration {iteration}:")
+            
+            for block in self.cfg.nodes:
+                old_in = block.IN.copy()
+                old_out = block.OUT.copy()
+                
+                block.OUT = set()
+                for succ in block.successors:
+                    block.OUT.update(succ.IN)
+                
+                block.IN = block.USE.union(block.OUT - block.DEF)
+                
+                if old_in != block.IN or old_out != block.OUT:
+                    changed = True
+                
+                self._print_state(block)
+            
+            print("\n" + "="*50)
+
+    def _print_state(self, block: CFG_Node):
+        """Print the current state of a block"""
+        print(f"\nBlock {block.label}:")
+        print(f"IN: {sorted(block.IN)}")
+        print(f"OUT: {sorted(block.OUT)}")
+        if self.analysis_type == "ReachingDefinitions":
+            print(f"GEN: {sorted(block.GEN)}")
+            print(f"KILL: {sorted(block.KILL)}")
+        else:
+            print(f"USE: {sorted(block.USE)}")
+            print(f"DEF: {sorted(block.DEF)}")
