@@ -1,33 +1,34 @@
 # optimizer.py
 
 from cfg_construction import *
+from data_flow_analysis import Data_Flow_Analyzer
 
 ########################################################################################################################
 
-def optimizer(self):
-    """
-        We can refactor this to main later, or just leave it as is. Either way its the main function of project 4.
-    """
+def optimizer():
+    """Main function for project 4"""
+    # Read input file
+    input_file = "P4_Optimization/brian_case.txt"  # Using relative path with explicit current directory
+    
+    # Build Control Flow Graph
+    cfg = ControlFlowGraph(input_file)
+    
+    # Display leaders
+    print("\nLeaders:", sorted(cfg.leaders.keys()))
+    
+    # Display CFG
+    print("\nControl Flow Graph:")
+    cfg.display()
+    
+    # Run Reaching Definitions Analysis
+    print("\nReaching Definitions Analysis:")
+    analyzer = Data_Flow_Analyzer(cfg)
+    analyzer.compute_data_sets()
+    
+    # Run Live Variables Analysis
+    print("\nLive Variables Analysis:")
+    analyzer.analysis_type = "LiveVariables"
+    analyzer.compute_data_sets()
 
-    print("This is the optimizer :3\n")
-
-    # Initialization
-    input_file = "3AC_cases.txt"                      # Infile Directory
-    control_flow_graph = ControlFlowGraph(input_file) # CFG Object
-
-    # OUTPUT - Display Leaders
-    print("\nLeaders found on the following lines.")
-    print(", ".join(str(leader) for leader in sorted(control_flow_graph.leaders)))
-
-    # OUTPUT - Display CFG
-    print(".\nControl-Flow Graph:\n")
-    control_flow_graph.display()
-
-
-
-
-
-
-
-optimizer(None)
+optimizer()
 ########################################################################################################################
