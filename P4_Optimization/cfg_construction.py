@@ -68,57 +68,44 @@ class ControlFlowGraph:
     def _get_leaders(self):
         """
         Returns an integer list, with each integer representing the line # of a Leader.
+        Rules for identifying leaders:
+        1. First TAC instruction is a leader
+        2. Any instruction that is the target of a goto/jump is a leader
+        3. Any instruction that immediately follows a goto/jump is a leader
         """
-        # Rules for identifying headers
-        # 1. Start of the program.            -- line 0
-        # 2. At the "target" of any branch.   -- line lead to by a "goto"
-        # 3. Immediately after any branch.    -- any line following a conditional.
-
-        # Loop through every line in the file
+        # First, find the first non-comment line (Rule 1)
         for line_number, line in enumerate(self.file, start=1):
-
-            # Strip whitespace
             line = line.strip()
+            if line and not line.startswith("#"):
+                self.leaders[line_number] = "block_1"
+                break
 
-            # Skip comments and empty lines
+        # Process the rest of the file for other leaders
+        for line_number, line in enumerate(self.file, start=1):
+            line = line.strip()
             if not line or line.startswith("#"):
                 continue
 
-            # Mark Starting Leader  (condition 1.)
-            if len(self.leaders) == 0:
-                self.leaders[line_number] = "block_" + str(len(self.leaders)+1) # Add leader
+            # Check for goto/jump instructions (Rules 2 and 3)
+            if "goto" in line:
+                # Extract target line number from (n) format
+                if "(" in line and ")" in line:
+                    start = line.find("(") + 1
+                    end = line.find(")")
+                    num_str = line[start:end]
+                    if num_str.isdigit():
+                        # Rule 2: Target of goto is a leader
+                        target = int(num_str)
+                        if target not in self.leaders:
+                            self.leaders[target] = "block_" + str(len(self.leaders) + 1)
 
-                # Mark Branch-Target Following Leader (condition 3.)
-                self._find_follower(1)
-                continue
+                # Rule 3: Line after goto is a leader
+                next_line = line_number + 1
+                if next_line <= len(self.file) and next_line not in self.leaders:
+                    self.leaders[next_line] = "block_" + str(len(self.leaders) + 1)
 
-            # Mark Branch-Target Leader (condition 2.)
-            if "if " in line and "goto " in line:
-                start = line.find("goto ") + len("goto ")
-                num_str = ""
-                # Gather Digits After GOTO
-                while start < len(line) and line[start].isdigit():
-                    num_str += line[start]
-                    start += 1
-
-                # If Valid Target
-                if num_str:
-                    # Convert Branch-Target to int
-                    target = int(num_str)
-
-                else:
-                    # Catch Error
-                    print("Debug:", " Invalid GOTO / Jump Destination.")
-                    continue
-
-                # Check if Branch-Target is already a Leader
-                if target not in self.leaders:
-                    self.leaders[target] = "block_" + str(len(self.leaders) + 1)  # Add leader
-
-                    # Mark Branch Following Leader (condition 3.)
-                    self._find_follower(line_number)
-
-        print("Debug:", "Finished getting leaders.")
+        print("Debug: Leaders found:", sorted(self.leaders.keys()))
+        print("Debug: Leader blocks:", {k: v for k, v in sorted(self.leaders.items())})
     # End - _get_leaders()
     ####################################################################################################################
 
@@ -150,6 +137,7 @@ class ControlFlowGraph:
 
             # Add Follower Leader
             self.leaders[index] = "block_" + str(len(self.leaders) + 1)  # Add leader
+            return
 
     # End - _find_follower()
     ####################################################################################################################
