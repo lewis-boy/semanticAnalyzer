@@ -22,9 +22,11 @@ class CFG_Node:
     This class represent a single node of our control-flow graph.
     Each node in turn represents a single basic block within our 3AC.
     """
-    def __init__(self, label=None):
+    def __init__(self, label=None, real_start=None):
 
         self.label = label      # Basic Block Index
+        self.real_start = real_start
+
         self.instructions = []  # List of TAC instructions in this block
         self.leader_pos  = 0
         self.start_pos   = 0
@@ -57,6 +59,7 @@ class CFG_Node:
         if self.instructions:
             line_num = extract_line_num(self.instructions[0])
             self.leader_pos = line_num if isinstance(line_num, int) else -1
+
 ########################################################################################################################
 
 class ControlFlowGraph:
@@ -80,6 +83,7 @@ class ControlFlowGraph:
         self._get_leaders()
         self._rename_blocks()
         self._construct_nodes()
+        self._normalize_jumps_to_labels() # rename goto targets to blocks
 
         # Construct Predecessor & Successor Sets:
         self._populate_successors()        # Calculates jump successors
@@ -273,7 +277,26 @@ class ControlFlowGraph:
 
     # End - display()
     ####################################################################################################################
+    def _normalize_jumps_to_labels(self):
+        """
 
+        """
+        for node in self.nodes:
+            new_instructions = []
+            for instr in node.instructions:
+                line_num = extract_line_num(instr)
+                if line_num and "goto" in instr:
+                    label = self.leaders.get(line_num)
+                    if label:
+                        # Replace (line_num) with block_X
+                        new_instr = instr.replace(f"({line_num})", label)
+                        new_instructions.append(new_instr)
+                        print(f"Rewriting: '{instr}' → '{new_instr}'")
+                        continue
+                new_instructions.append(instr)
+            node.instructions = new_instructions
+
+    ####################################################################################################################
     def _generate_fall_through_flow(self):
         """
             Populates successor and predecessor lists of all nodes in the path of the default fall through.
@@ -297,27 +320,36 @@ class ControlFlowGraph:
                     node.add_successor(next_node)
 
     ####################################################################################################################
-
     def _populate_successors(self):
         """
-            Populates the successor list for each node based on jump instructions only (e.g., goto, if ... goto).
-            Fall-throughs are handled separately.
+        Populates the successor list for each node based on jump instructions only.
+        Fall-throughs handled separately.
         """
-        for node in self.nodes:
+        for i, node in enumerate(self.nodes):
             if not node.instructions or node.label in ("(start)", "(end)"):
                 continue
 
             last_instr = node.instructions[-1].strip()
-            target_line = extract_line_num(last_instr)
 
-            # Handle conditional or unconditional jumps
-            is_goto = "goto" in last_instr and target_line is not None
-            if is_goto:
-                target_label = self.leaders.get(target_line)
-                if target_label:
-                    target_node = self.label_to_node.get(target_label)
-                    if target_node and target_node != node:
-                        node.add_successor(target_node)
+            if "goto" not in last_instr:
+                continue  # Skip non-jump lines
+
+            target_line = extract_line_num(last_instr)
+            if target_line is None:
+                continue  # Invalid/missing target
+
+            target_label = self.leaders.get(target_line)
+            if not target_label:
+                continue  # Target not mapped to any block
+
+            target_node = self.label_to_node.get(target_label)
+            if target_node and target_node != node:
+                print(f"Debug: {node.label} jumps to {target_node.label} at line {target_line}")
+                # Optional: confirm jump is aligned with expected instruction
+                jump_instr = self._resolve_jump_target(target_node, target_line)
+                if jump_instr:
+                    print(f"    -> Target instruction: {jump_instr.strip()}")
+                node.add_successor(target_node)
 
     # End - populate_successors()
     ####################################################################################################################
@@ -332,3 +364,9 @@ class ControlFlowGraph:
 
     # End - populate_predecessors()
     ####################################################################################################################
+    def _resolve_jump_target(self, block: CFG_Node, target_line: int):
+        offset = target_line - block.real_start
+        if 0 <= offset < len(block.instructions):
+            return block.instructions[offset]
+        print(f"Debug: Invalid offset {offset} in block {block.label}")
+        return None
