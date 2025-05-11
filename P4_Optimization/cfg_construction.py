@@ -76,13 +76,15 @@ class ControlFlowGraph:
         with open(tac_file_path, 'r') as file:
             self.file = file.readlines()
 
-        # Build CFG
-
+        # Build the Nodes of the CFG
         self._get_leaders()
         self._rename_blocks()
         self._construct_nodes()
-        self._populate_successors()
-        self._populate_predecessors() # called after successors is critical
+
+        # Construct Predecessor & Successor Sets:
+        self._populate_successors()        # Calculates jump successors
+        self._generate_fall_through_flow() # Skips rely on jumps
+        self._populate_predecessors()      # Relies on successor set being accurate
 
     # END - Constructor
     ####################################################################################################################
@@ -272,35 +274,50 @@ class ControlFlowGraph:
     # End - display()
     ####################################################################################################################
 
+    def _generate_fall_through_flow(self):
+        """
+            Populates successor and predecessor lists of all nodes in the path of the default fall through.
+        """
+        # Loop through all nodes
+        for i, node in enumerate(self.nodes):
+            if node.label in ("(start)", "(end)") or not node.instructions:
+                continue
+
+            last_instr = node.instructions[-1].strip()
+            is_unconditional_jump = last_instr.startswith("goto") and "if" not in last_instr
+
+            # Skip fall-through for unconditional jumps
+            if is_unconditional_jump:
+                continue
+
+            # Add fall-through to next block if it exists
+            if i + 1 < len(self.nodes):
+                next_node = self.nodes[i + 1]
+                if next_node and next_node != node:
+                    node.add_successor(next_node)
+
+    ####################################################################################################################
+
     def _populate_successors(self):
         """
-            Populates the successor list for each node based on control flow instructions.
+            Populates the successor list for each node based on jump instructions only (e.g., goto, if ... goto).
+            Fall-throughs are handled separately.
         """
-        for i, node in enumerate(self.nodes):
+        for node in self.nodes:
             if not node.instructions or node.label in ("(start)", "(end)"):
                 continue
 
-            last_instr = node.instructions[-1]
+            last_instr = node.instructions[-1].strip()
             target_line = extract_line_num(last_instr)
 
-            # Handle jump/goto instructions
-            if "goto" in last_instr:
-                if target_line:
-                    target_label = self.leaders.get(target_line)
-                    if target_label:
-                        target_node = self.label_to_node.get(target_label)
-                        if target_node:
-                            node.add_successor(target_node)
-
-                # Only add fall-through if it's a *conditional* jump
-                if ("if" in last_instr or "ifFalse" in last_instr) and i + 1 < len(self.nodes):
-                    fallthrough_node = self.nodes[i + 1]
-                    node.add_successor(fallthrough_node)
-            else:
-                # No jump: fall-through to next node
-                if i + 1 < len(self.nodes):
-                    fallthrough_node = self.nodes[i + 1]
-                    node.add_successor(fallthrough_node)
+            # Handle conditional or unconditional jumps
+            is_goto = "goto" in last_instr and target_line is not None
+            if is_goto:
+                target_label = self.leaders.get(target_line)
+                if target_label:
+                    target_node = self.label_to_node.get(target_label)
+                    if target_node and target_node != node:
+                        node.add_successor(target_node)
 
     # End - populate_successors()
     ####################################################################################################################
