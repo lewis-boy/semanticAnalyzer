@@ -1,4 +1,3 @@
-# Test Case 1
 (1) i = n
 (2) if i < 2 then goto (32)
 (3) jmax = 1
