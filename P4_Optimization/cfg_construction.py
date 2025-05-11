@@ -80,7 +80,9 @@ class ControlFlowGraph:
 
         self._get_leaders()
         self._rename_blocks()
-        self._build_graph()
+        self._construct_nodes()
+        self._populate_successors()
+        self._populate_predecessors() # called after successors is critical
 
     # END - Constructor
     ####################################################################################################################
@@ -175,7 +177,7 @@ class ControlFlowGraph:
     # End - _find_follower()
     ####################################################################################################################
 
-    def _build_graph(self):
+    def _construct_nodes(self):
         """
             This method will populate the control-flow graph.
         """
@@ -231,14 +233,17 @@ class ControlFlowGraph:
 
     ####################################################################################################################
 
-    def _calculate_successors(self):
-        label_map = {node.label: node for node in self.nodes if node.label}
-        for node in self.nodes:
-            new_successors = []
-            for target_label in node.successors:
-                if target_label in label_map:
-                    new_successors.append(label_map[target_label])
-            node.successors = new_successors
+    ################ - OLD CODE - ###########################################
+    #
+    # def _calculate_successors(self):
+    #     label_map = {node.label: node for node in self.nodes if node.label}
+    #     for node in self.nodes:
+    #         new_successors = []
+    #         for target_label in node.successors:
+    #             if target_label in label_map:
+    #                 new_successors.append(label_map[target_label])
+    #         node.successors = new_successors
+    ###########################################################################
 
     # End - _calculate_successors()
     ####################################################################################################################
@@ -248,9 +253,65 @@ class ControlFlowGraph:
             print(f"Node: {node.label}")
             for instr in node.instructions:
                 print(f"    {instr}")
+
+            # Print Predecessors
+            if node.predecessors:
+                print(f"    Predecessors ({len(node.predecessors)}): {[pred.label for pred in node.predecessors]}")
+            else:
+                print("    Predecessors: None")
+
+            # Print Successors
             if node.successors:
-                print(f"    Successors: {[succ.label for succ in node.successors]}")
+                print(f"    Successors ({len(node.successors)}): {[succ.label for succ in node.successors]}")
+            else:
+                print("    Successors: None")
+
+            # Arrow
             print("\t  |\n\t  V")
 
     # End - display()
+    ####################################################################################################################
+
+    def _populate_successors(self):
+        """
+            Populates the successor list for each node based on control flow instructions.
+        """
+        for i, node in enumerate(self.nodes):
+            if not node.instructions or node.label in ("(start)", "(end)"):
+                continue
+
+            last_instr = node.instructions[-1]
+            target_line = extract_line_num(last_instr)
+
+            # Handle jump/goto instructions
+            if "goto" in last_instr:
+                if target_line:
+                    target_label = self.leaders.get(target_line)
+                    if target_label:
+                        target_node = self.label_to_node.get(target_label)
+                        if target_node:
+                            node.add_successor(target_node)
+
+                # Only add fall-through if it's a *conditional* jump
+                if ("if" in last_instr or "ifFalse" in last_instr) and i + 1 < len(self.nodes):
+                    fallthrough_node = self.nodes[i + 1]
+                    node.add_successor(fallthrough_node)
+            else:
+                # No jump: fall-through to next node
+                if i + 1 < len(self.nodes):
+                    fallthrough_node = self.nodes[i + 1]
+                    node.add_successor(fallthrough_node)
+
+    # End - populate_successors()
+    ####################################################################################################################
+
+    def _populate_predecessors(self):
+        """
+            Populates the predecessor list for each node based on existing successor links.
+        """
+        for node in self.nodes:
+            for succ in node.successors:
+                succ.add_predecessor(node)
+
+    # End - populate_predecessors()
     ####################################################################################################################
