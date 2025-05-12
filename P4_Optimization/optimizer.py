@@ -7,7 +7,7 @@ from data_flow_analysis import Data_Flow_Analyzer
 
 def optimizer(): # mnain function for project 4
     # Read input file
-    input_file = "./P4_Optimization/test_case_1.txt"  # Using relative path with explicit current directory
+    input_file = "./P4_Optimization/test_case_3.txt"  # Using relative path with explicit current directory
     
     # Build Control Flow Graph
     cfg = ControlFlowGraph(input_file)
