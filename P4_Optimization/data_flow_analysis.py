@@ -10,7 +10,7 @@ class Data_Flow_Analyzer: # class performs variable specific dfa on a given cfg
         self.analysis_type = "ReachingDefinitions"
         self.definitions = set()
 
-    def compute_data_sets(self): # main method to run the analysis
+    def compute_data_sets(self): # decides which analysis to run (RD or LV)
         if self.analysis_type == "ReachingDefinitions":
             self._do_reaching_definitions()
         else:
@@ -76,9 +76,13 @@ class Data_Flow_Analyzer: # class performs variable specific dfa on a given cfg
                                 block.USE.add(var)
                     
                     # Handle regular variables in expressions
-                    for var in self.definitions:
-                        if var in expr and var not in block.DEF:
-                            block.USE.add(var)
+                    # instead of set() operations everywhere
+                    block.OUT = list(block.GEN)
+                    for var in block.IN:
+                        if var not in block.KILL:
+                            block.OUT.append(var)
+                    block.OUT = set(block.OUT)  # i dont think it's optimal LOL - brian
+
                 
                 # Handle if statements and conditions
                 elif 'if' in instr:
