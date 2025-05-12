@@ -315,7 +315,8 @@ class ControlFlowGraph:
             print(f"    \033[1mSuccessors   ({succ_count}):\033[0m    {formatted_succs if formatted_succs else 'None'}")
 
             # Fall-through arrow to convey top-down relationships
-            print("\t  |\n\t  V")
+            if node != self.nodes[-1]:
+                print("\t  |\n\t  V")
 
     # End - display()
     ########################################################################################################################
