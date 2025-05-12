@@ -4,45 +4,37 @@
 
 from cfg_construction import ControlFlowGraph, CFG_Node
 
-class Data_Flow_Analyzer:
-    """
-    This class performs variable specific data-flow analysis on a given control-flow graph.
-    """
+class Data_Flow_Analyzer: # class performs variable specific dfa on a given cfg
     def __init__(self, cfg: ControlFlowGraph):
         self.cfg = cfg
         self.analysis_type = "ReachingDefinitions"
         self.definitions = set()
 
-    def compute_data_sets(self):
-        """Main method to run the analysis"""
+    def compute_data_sets(self): # main method to run the analysis
         if self.analysis_type == "ReachingDefinitions":
             self._do_reaching_definitions()
         else:
             self._do_live_variables()
 
-    def _do_reaching_definitions(self):
-        """Runs the reaching definitions analysis"""
+    def _do_reaching_definitions(self): # runs reaching definitions analysis
         self._find_definitions()
         self._setup_gen_kill()
         self._init_in_out()
         self._run_forward_analysis()
 
-    def _do_live_variables(self):
-        """Runs the live variables analysis"""
+    def _do_live_variables(self): # runs live variables analysis
         self._setup_use_def()
         self._init_in_out()
         self._run_backward_analysis()
 
-    def _find_definitions(self):
-        """Finds all variable definitions in the program"""
+    def _find_definitions(self): # finds all variable definitions in the program
         for block in self.cfg.nodes:
             for instr in block.instructions:
                 if '=' in instr:
                     var = instr.split('=')[0].strip()
                     self.definitions.add(var)
 
-    def _setup_gen_kill(self):
-        """Sets up GEN and KILL sets for each block"""
+    def _setup_gen_kill(self): # sets up gen and kill sets for each block
         for block in self.cfg.nodes:
             block.GEN = set()
             block.KILL = set()
@@ -58,31 +50,55 @@ class Data_Flow_Analyzer:
                             if other_def.startswith(var_base):
                                 block.KILL.add(other_def)
 
-    def _setup_use_def(self):
-        """Sets up USE and DEF sets for each block"""
+    def _setup_use_def(self): # sets up use and def sets for each block
         for block in self.cfg.nodes:
             block.USE = set()
             block.DEF = set()
             
             for instr in block.instructions:
+                # Handle assignment statements
                 if '=' in instr:
                     def_var = instr.split('=')[0].strip()
                     block.DEF.add(def_var)
                     
-                    # Simple variable detection - just look for variables after '='
+                    # Get the right-hand side expression
                     expr = instr.split('=')[1].strip()
+                    
+                    # Handle array accesses
+                    if '[' in expr and ']' in expr:
+                        # Extract the index expression
+                        start = expr.find('[') + 1
+                        end = expr.find(']')
+                        index_expr = expr[start:end]
+                        # Add any variables in the index expression
+                        for var in self.definitions:
+                            if var in index_expr and var not in block.DEF:
+                                block.USE.add(var)
+                    
+                    # Handle regular variables in expressions
                     for var in self.definitions:
                         if var in expr and var not in block.DEF:
                             block.USE.add(var)
+                
+                # Handle if statements and conditions
+                elif 'if' in instr:
+                    # Extract the condition part
+                    if 'then' in instr:
+                        condition = instr.split('then')[0].replace('if', '').strip()
+                    else:
+                        condition = instr.replace('if', '').strip()
+                    
+                    # Add variables used in the condition
+                    for var in self.definitions:
+                        if var in condition and var not in block.DEF:
+                            block.USE.add(var)
 
-    def _init_in_out(self):
-        """Initialize IN and OUT sets to empty"""
+    def _init_in_out(self): # initializes the IN and OUT sets to empty
         for block in self.cfg.nodes:
             block.IN = set()
             block.OUT = set()
 
-    def _run_forward_analysis(self):
-        """Run the forward analysis until it stabilizes"""
+    def _run_forward_analysis(self): # runs the forward analysis until it stabilizes
         changed = True
         iteration = 0
         
@@ -109,8 +125,7 @@ class Data_Flow_Analyzer:
             
             print("\n" + "="*50)
 
-    def _run_backward_analysis(self):
-        """Run the backward analysis until it stabilizes"""
+    def _run_backward_analysis(self): # runs te backward analysis until it stabilizes
         changed = True
         iteration = 0
         
@@ -137,8 +152,7 @@ class Data_Flow_Analyzer:
             
             print("\n" + "="*50)
 
-    def _print_state(self, block: CFG_Node):
-        """Print the current state of a block"""
+    def _print_state(self, block: CFG_Node): # function prints the current state of a block
         print(f"\nBlock {block.label}:")
         print(f"IN: {sorted(block.IN)}")
         print(f"OUT: {sorted(block.OUT)}")
