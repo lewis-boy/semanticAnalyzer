@@ -16,9 +16,19 @@ def optimizer():
     # Display leaders
     print("\nLeaders line #s:", [pos for pos in (node.leader_pos for node in cfg.nodes) if pos > 0])
 
-    # Display CFG
-    cfg.display()
-    
+    # Display Console CFG
+    cfg.display_to_console()
+
+    # Prompt User Input
+    response = input("Generate CFG PDF with Graphviz? (Y/N): ").strip().upper()
+    if response == ("YY"
+                    ""):
+
+        # Display graphviz CFG
+        cfg.display_to_pdf()
+    else:
+        print("Okay, the display to PDF will be skipped\n")
+
     # Run Reaching Definitions Analysis
     print("\nReaching Definitions Analysis:")
     analyzer = Data_Flow_Analyzer(cfg)
