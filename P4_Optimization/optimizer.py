@@ -5,8 +5,7 @@ from data_flow_analysis import Data_Flow_Analyzer
 
 ########################################################################################################################
 
-def optimizer():
-    """Main function for project 4"""
+def optimizer(): # mnain function for project 4
     # Read input file
     input_file = "./P4_Optimization/test_case_1.txt"  # Using relative path with explicit current directory
     
