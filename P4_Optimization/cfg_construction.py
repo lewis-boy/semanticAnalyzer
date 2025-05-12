@@ -15,6 +15,17 @@ def extract_line_num(line: str):
             else:
                 print(f"Debug: Invalid line reference in goto: {num_str}")
     return None
+
+def extract_jump_target(line: str):
+    if "goto" in line:
+        start = line.find("goto")
+        open_paren = line.find("(", start)
+        close_paren = line.find(")", open_paren)
+        if open_paren != -1 and close_paren != -1:
+            num_str = line[open_paren + 1:close_paren]
+            if num_str.isdigit():
+                return int(num_str)
+    return None
 ########################################################################################################################
 
 class CFG_Node:
@@ -90,6 +101,7 @@ class ControlFlowGraph:
         self._generate_fall_through_flow() # Skips rely on jumps
         self._populate_predecessors()      # Relies on successor set being accurate
 
+
     # END - Constructor
     ####################################################################################################################
 
@@ -118,7 +130,7 @@ class ControlFlowGraph:
             if "goto" in line or "if" in line or "ifFalse" in line:
 
                 # Extract target line number from (n) format
-                num_str = extract_line_num(line)
+                num_str = extract_jump_target(line)
 
                 # If valid
                 if num_str:
@@ -255,22 +267,22 @@ class ControlFlowGraph:
     ####################################################################################################################
 
     def display(self):
+        side_len = 12
+        print("\033[1m" + "\n" + "_" * side_len + " Control Flow Graph " + "_" * side_len + "\n\n" + "\033[0m")
         for node in self.nodes:
-            print(f"Node: {node.label}")
+            print(f"\033[1;4mNode: {node.label}\033[0m")
             for instr in node.instructions:
                 print(f"    {instr}")
 
-            # Print Predecessors
-            if node.predecessors:
-                print(f"    Predecessors ({len(node.predecessors)}): {[pred.label for pred in node.predecessors]}")
-            else:
-                print("    Predecessors: None")
+            # Format Predecessors
+            pred_count = len(node.predecessors)
+            formatted_preds = ", ".join(f"\033[1;4m{pred.label}\033[0m" for pred in node.predecessors)
+            print(f"    \033[1mPredecessors ({pred_count}):\033[0m    {formatted_preds if formatted_preds else 'None'}")
 
-            # Print Successors
-            if node.successors:
-                print(f"    Successors ({len(node.successors)}): {[succ.label for succ in node.successors]}")
-            else:
-                print("    Successors: None")
+            # Format Successors
+            succ_count = len(node.successors)
+            formatted_succs = ", ".join(f"\033[1;4m{succ.label}\033[0m" for succ in node.successors)
+            print(f"    \033[1mSuccessors   ({succ_count}):\033[0m    {formatted_succs if formatted_succs else 'None'}")
 
             # Arrow
             print("\t  |\n\t  V")
@@ -279,21 +291,36 @@ class ControlFlowGraph:
     ####################################################################################################################
     def _normalize_jumps_to_labels(self):
         """
-
+        Rewrites jump targets (e.g., goto (N)) to use block labels (e.g., goto block_X),
+        while preserving the original line number marker (e.g., (2)) at the beginning of the instruction.
         """
         for node in self.nodes:
             new_instructions = []
             for instr in node.instructions:
-                line_num = extract_line_num(instr)
-                if line_num and "goto" in instr:
-                    label = self.leaders.get(line_num)
+                original = instr  # keep for debugging
+                prefix = ""
+
+                # Preserve the original line number marker, e.g., (2)
+                if instr.startswith("("):
+                    end_idx = instr.find(")")
+                    if end_idx != -1 and instr[1:end_idx].isdigit():
+                        prefix = instr[:end_idx + 1]
+                        instr = instr[end_idx + 1:].strip()
+
+                # Attempt to extract a jump target (e.g., from "goto (32)")
+                target_line = extract_line_num(instr)
+                if target_line:
+                    label = self.leaders.get(target_line)
                     if label:
-                        # Replace (line_num) with block_X
-                        new_instr = instr.replace(f"({line_num})", label)
-                        new_instructions.append(new_instr)
-                        print(f"Rewriting: '{instr}' → '{new_instr}'")
-                        continue
-                new_instructions.append(instr)
+                        # Replace (N) anywhere in the *remaining* instruction with block_X
+                        instr = instr.replace(f"({target_line})", label)
+
+                # Recombine with preserved prefix
+                full_instr = f"{prefix} {instr}".strip()
+                if full_instr != original:
+                    print(f"Rewriting: '{original}' → '{full_instr}'")
+                new_instructions.append(full_instr)
+
             node.instructions = new_instructions
 
     ####################################################################################################################
@@ -323,33 +350,29 @@ class ControlFlowGraph:
     def _populate_successors(self):
         """
         Populates the successor list for each node based on jump instructions only.
-        Fall-throughs handled separately.
+        Now works on normalized block labels instead of raw line numbers.
         """
-        for i, node in enumerate(self.nodes):
+        for node in self.nodes:
             if not node.instructions or node.label in ("(start)", "(end)"):
                 continue
 
             last_instr = node.instructions[-1].strip()
 
+            # Look for any target in the form "goto block_X" or "if ... goto block_X"
             if "goto" not in last_instr:
-                continue  # Skip non-jump lines
+                continue
 
-            target_line = extract_line_num(last_instr)
-            if target_line is None:
-                continue  # Invalid/missing target
+            # Find block label after 'goto'
+            parts = last_instr.split("goto")
+            if len(parts) < 2:
+                continue  # malformed
 
-            target_label = self.leaders.get(target_line)
-            if not target_label:
-                continue  # Target not mapped to any block
-
-            target_node = self.label_to_node.get(target_label)
-            if target_node and target_node != node:
-                print(f"Debug: {node.label} jumps to {target_node.label} at line {target_line}")
-                # Optional: confirm jump is aligned with expected instruction
-                jump_instr = self._resolve_jump_target(target_node, target_line)
-                if jump_instr:
-                    print(f"    -> Target instruction: {jump_instr.strip()}")
-                node.add_successor(target_node)
+            jump_target = parts[1].strip().split()[0]  # gets block_X
+            if jump_target in self.label_to_node:
+                target_node = self.label_to_node[jump_target]
+                if target_node and target_node != node:
+                    print(f"Debug: {node.label} jumps to {target_node.label}")
+                    node.add_successor(target_node)
 
     # End - populate_successors()
     ####################################################################################################################

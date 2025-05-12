@@ -17,7 +17,6 @@ def optimizer():
     print("\nLeaders line #s:", [pos for pos in (node.leader_pos for node in cfg.nodes) if pos > 0])
 
     # Display CFG
-    print("\nControl Flow Graph:")
     cfg.display()
 
     return
