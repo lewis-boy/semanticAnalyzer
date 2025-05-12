@@ -8,7 +8,7 @@ from data_flow_analysis import Data_Flow_Analyzer
 def optimizer():
     """Main function for project 4"""
     # Read input file
-    input_file = "test_case_1.txt"  # Using relative path with explicit current directory
+    input_file = "./P4_Optimization/test_case_1.txt"  # Using relative path with explicit current directory
     
     # Build Control Flow Graph
     cfg = ControlFlowGraph(input_file)
@@ -18,8 +18,6 @@ def optimizer():
 
     # Display CFG
     cfg.display()
-
-    return
     
     # Run Reaching Definitions Analysis
     print("\nReaching Definitions Analysis:")
